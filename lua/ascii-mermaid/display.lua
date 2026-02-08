@@ -49,36 +49,33 @@ local function show_overlays(bufnr, entry)
     overlay_slots = overlay_count - 1
   end
 
-  -- Only overlay lines that have corresponding diagram content
+  -- Only overlay source lines that have non-empty diagram content.
+  -- All overlays are padded to the same width (max diagram line width) so the
+  -- opaque bg forms a uniform rectangle — like a code block background.
+  -- Irregular widths create visible "block" artifacts on transparent terminals.
   local lines_to_overlay = math.min(overlay_slots, diagram_count)
 
-  -- Compute the uniform overlay width: max of all diagram lines and source lines.
-  -- This prevents narrow padding lines from creating visible right-edge artifacts.
-  local min_width = 0
-  for _, line in ipairs(entry.lines) do
-    local w = vim.fn.strdisplaywidth("  " .. line)
-    if w > min_width then min_width = w end
-  end
-  for i = 0, lines_to_overlay - 1 do
-    local line_idx = overlay_start + i
-    local buf_line = vim.api.nvim_buf_get_lines(bufnr, line_idx, line_idx + 1, false)[1] or ""
-    local w = vim.fn.strdisplaywidth(buf_line)
-    if w > min_width then min_width = w end
-  end
+  -- Extend overlays to the full window width so the right edge is invisible
+  -- (at the window boundary where every line ends anyway).
+  local winid = vim.fn.bufwinid(bufnr)
+  local uniform_width = winid ~= -1 and vim.api.nvim_win_get_width(winid) or 120
 
   for i = 0, lines_to_overlay - 1 do
-    local line_idx = overlay_start + i
-    local text = "  " .. entry.lines[i + 1]
-    local text_width = vim.fn.strdisplaywidth(text)
-    if min_width > text_width then
-      text = text .. string.rep(" ", min_width - text_width)
+    -- Skip empty diagram lines (would produce all-space overlay = blocks)
+    if entry.lines[i + 1] ~= "" then
+      local line_idx = overlay_start + i
+      local text = "  " .. entry.lines[i + 1]
+      local text_width = vim.fn.strdisplaywidth(text)
+      if uniform_width > text_width then
+        text = text .. string.rep(" ", uniform_width - text_width)
+      end
+
+      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, line_idx, 0, {
+        virt_text = { { text, "Comment" } },
+        virt_text_pos = "overlay",
+      })
+      table.insert(overlay_ids, id)
     end
-
-    local id = vim.api.nvim_buf_set_extmark(bufnr, ns, line_idx, 0, {
-      virt_text = { { text, "Comment" } },
-      virt_text_pos = "overlay",
-    })
-    table.insert(overlay_ids, id)
   end
 
   -- Overflow: remaining diagram lines that don't fit in the source block
@@ -172,13 +169,6 @@ end
 ---@param lines string[]
 ---@param hash number
 local function render_block_replace(bufnr, block, lines, hash)
-  -- Pad diagram lines to cover all source lines (content + closing fence).
-  -- This prevents source code from showing below short diagrams.
-  local min_lines = block.end_line - block.start_line
-  while #lines < min_lines do
-    table.insert(lines, "")
-  end
-
   local entry = {
     hash = hash,
     pending = false,

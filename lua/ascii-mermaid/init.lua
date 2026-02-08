@@ -47,6 +47,24 @@ function M.setup(opts)
     display.clear(vim.api.nvim_get_current_buf())
   end, { desc = "Clear all rendered mermaid diagrams" })
 
+  vim.api.nvim_create_user_command("MermaidStyle", function(args)
+    local style = args.args
+    if style ~= "ascii" and style ~= "unicode" then
+      vim.notify("ascii-mermaid: invalid style '" .. style .. "' (use ascii or unicode)", vim.log.levels.ERROR)
+      return
+    end
+    M.config.use_ascii = (style == "ascii")
+    local bufnr = vim.api.nvim_get_current_buf()
+    display.clear(bufnr)
+    display.show(bufnr, M.config)
+  end, {
+    nargs = 1,
+    complete = function()
+      return { "ascii", "unicode" }
+    end,
+    desc = "Switch mermaid rendering style (ascii or unicode)",
+  })
+
   vim.api.nvim_create_user_command("MermaidMode", function(args)
     local mode = args.args
     if mode ~= "inline" and mode ~= "replace" and mode ~= "hybrid" then

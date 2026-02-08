@@ -108,6 +108,31 @@ function M.get_overlay_text_lines(bufnr)
   return result
 end
 
+--- Get overlay extmarks with their line positions and text widths.
+--- Returns { { line = 0-indexed, text = string, width = number } ... }
+---@param bufnr number
+---@return table[]
+function M.get_overlay_details(bufnr)
+  local marks = M.get_overlay_extmarks(bufnr)
+  local result = {}
+  for _, mark in ipairs(marks) do
+    local line = mark[2]
+    local details = mark[4]
+    if details and details.virt_text then
+      local full_text = ""
+      for _, chunk in ipairs(details.virt_text) do
+        full_text = full_text .. (chunk[1] or "")
+      end
+      table.insert(result, {
+        line = line,
+        text = full_text,
+        width = vim.fn.strdisplaywidth(full_text),
+      })
+    end
+  end
+  return result
+end
+
 --- Assert condition; on failure print message and exit with code 1.
 ---@param cond boolean
 ---@param msg string

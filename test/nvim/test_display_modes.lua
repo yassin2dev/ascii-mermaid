@@ -124,4 +124,69 @@ h.assert(#overlays5 > 0, "hybrid-high: expected overlay extmarks for large diagr
 
 display.clear(bufnr5)
 
+-- ============================================================
+-- Test 6: Replace mode — overlay covers full source line width
+-- Padding uses a transparent hl so source text doesn't leak through.
+-- ============================================================
+local wide_src = [=[stateDiagram-v2
+    [*] --> Idle
+    Idle --> Active: start
+    Active --> Idle: stop
+    Active --> [*]]=]
+
+local bufnr6 = h.create_mermaid_buffer(wide_src)
+display.show(bufnr6, cfg_replace)
+local found6 = h.wait_for_extmarks(bufnr6)
+h.assert(found6, "width: extmarks not found after rendering (timeout)")
+
+local details6 = h.get_overlay_details(bufnr6)
+h.assert(#details6 > 0, "width: expected overlay extmarks")
+
+-- Each overlay must be at least as wide as the source line it covers
+for _, d in ipairs(details6) do
+  local src_line = vim.api.nvim_buf_get_lines(bufnr6, d.line, d.line + 1, false)[1] or ""
+  local src_width = vim.fn.strdisplaywidth(src_line)
+  h.assert(d.width >= src_width,
+    "width: overlay at line " .. d.line .. " is " .. d.width
+    .. " chars but source is " .. src_width .. " chars")
+end
+
+display.clear(bufnr6)
+
+-- ============================================================
+-- Test 7: Replace mode — no overlay line is entirely whitespace
+-- All-space overlays create visible block artifacts.
+-- ============================================================
+local bufnr7 = h.create_mermaid_buffer(wide_src)
+display.show(bufnr7, cfg_replace)
+local found7 = h.wait_for_extmarks(bufnr7)
+h.assert(found7, "no-blank: extmarks not found after rendering (timeout)")
+
+local details7 = h.get_overlay_details(bufnr7)
+for _, d in ipairs(details7) do
+  local trimmed = d.text:match("^%s*(.-)%s*$")
+  h.assert(trimmed ~= "",
+    "no-blank: overlay at line " .. d.line .. " is entirely whitespace (would cause blocks)")
+end
+
+display.clear(bufnr7)
+
+-- ============================================================
+-- Test 8: Replace mode — opening fence line has no overlay
+-- The ```mermaid tag must stay visible.
+-- ============================================================
+local bufnr8 = h.create_mermaid_buffer(mermaid_src)
+display.show(bufnr8, cfg_replace)
+local found8 = h.wait_for_extmarks(bufnr8)
+h.assert(found8, "fence: extmarks not found after rendering (timeout)")
+
+-- Opening fence is at line 2 (0-indexed: "# Test", "", "```mermaid")
+local details8 = h.get_overlay_details(bufnr8)
+for _, d in ipairs(details8) do
+  h.assert(d.line ~= 2,
+    "fence: opening fence line (line 2) should not have an overlay")
+end
+
+display.clear(bufnr8)
+
 h.pass()
