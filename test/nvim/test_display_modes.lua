@@ -172,19 +172,34 @@ end
 display.clear(bufnr7)
 
 -- ============================================================
--- Test 8: Replace mode — opening fence line has no overlay
--- The ```mermaid tag must stay visible.
+-- Test 8: Replace mode — fence lines have no overlay
+-- Tree-sitter markdown highlighting prevents overlays on fence lines.
 -- ============================================================
 local bufnr8 = h.create_mermaid_buffer(mermaid_src)
 display.show(bufnr8, cfg_replace)
 local found8 = h.wait_for_extmarks(bufnr8)
 h.assert(found8, "fence: extmarks not found after rendering (timeout)")
 
--- Opening fence is at line 2 (0-indexed: "# Test", "", "```mermaid")
+-- Opening fence is at line 2, closing fence at end.
+-- Neither should have overlays.
 local details8 = h.get_overlay_details(bufnr8)
+local buf8_lines = vim.api.nvim_buf_get_lines(bufnr8, 0, -1, false)
+local fence_start = 2
+local fence_end = nil
+for i, l in ipairs(buf8_lines) do
+  if i > fence_start + 1 and l:match("^```%s*$") then
+    fence_end = i - 1 -- 0-indexed
+    break
+  end
+end
+
 for _, d in ipairs(details8) do
-  h.assert(d.line ~= 2,
-    "fence: opening fence line (line 2) should not have an overlay")
+  h.assert(d.line ~= fence_start,
+    "fence: opening fence (line " .. fence_start .. ") should not have an overlay")
+  if fence_end then
+    h.assert(d.line ~= fence_end,
+      "fence: closing fence (line " .. fence_end .. ") should not have an overlay")
+  end
 end
 
 display.clear(bufnr8)

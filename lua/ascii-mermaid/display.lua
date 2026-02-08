@@ -31,23 +31,20 @@ local function show_overlays(bufnr, entry)
   end
 
   local overlay_ids = {}
-  -- Skip the opening fence line — keep the ```mermaid tag visible.
-  -- Overlay source lines with diagram content (not blanks).
+  -- Only overlay content lines between the fences — tree-sitter markdown
+  -- highlighting prevents overlays on the fence lines from rendering.
   local overlay_start = entry.start_line + 1
-  local src_end = entry.block_end_line
-  local overlay_count = src_end - overlay_start + 1
+  local src_end = entry.block_end_line - 1
+  local overlay_count = math.max(0, src_end - overlay_start + 1)
   local diagram_count = #entry.lines
   local has_overflow = diagram_count > overlay_count
 
-  -- Check if there's a line after the closing fence for overflow placement
+  -- Overflow goes on the closing fence line (always a valid buffer line)
+  local fence_end = entry.block_end_line
   local total_lines = vim.api.nvim_buf_line_count(bufnr)
-  local has_next_line = (src_end + 1) < total_lines
+  local has_next_line = (fence_end + 1) < total_lines
 
-  -- If overflow needed and no next line, reserve closing fence for virt_lines only
   local overlay_slots = overlay_count
-  if has_overflow and not has_next_line then
-    overlay_slots = overlay_count - 1
-  end
 
   -- Only overlay source lines that have non-empty diagram content.
   -- All overlays are padded to the same width (max diagram line width) so the
@@ -87,16 +84,15 @@ local function show_overlays(bufnr, entry)
 
     if has_next_line then
       -- Place on the line after the closing fence (virt_lines_above=true)
-      -- so they appear between the closing fence and the next line.
-      -- This avoids two extmarks at src_end (overlay + virt_lines).
-      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, src_end + 1, 0, {
+      -- so they appear between the closing fence and the next content.
+      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, fence_end + 1, 0, {
         virt_lines = overflow_virt_lines,
         virt_lines_above = true,
       })
       table.insert(overlay_ids, id)
     else
-      -- Closing fence is last line; no overlay there, use it for virt_lines
-      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, src_end, 0, {
+      -- Closing fence is last line; use it for virt_lines below
+      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, fence_end, 0, {
         virt_lines = overflow_virt_lines,
         virt_lines_above = false,
       })
