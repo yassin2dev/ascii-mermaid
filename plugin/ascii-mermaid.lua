@@ -1,0 +1,2 @@
+-- Lazy-load: don't do anything until setup() is called.
+-- This file exists so plugin managers detect it as a valid plugin.

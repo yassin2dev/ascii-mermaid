@@ -1,0 +1,353 @@
+local render = require("ascii-mermaid.render")
+local detect = require("ascii-mermaid.detect")
+
+local M = {}
+
+local ns = vim.api.nvim_create_namespace("ascii_mermaid")
+
+-- Track rendered blocks per buffer:
+-- { [bufnr] = { [start_line] = entry } }
+-- Entry fields depend on mode, see render_block_inline / render_block_replace.
+local rendered = {}
+
+-- Track which block the cursor is currently inside (for replace mode overlay toggle).
+-- { [bufnr] = start_line | nil }
+local cursor_block = {}
+
+local function content_hash(str)
+  local h = 0
+  for i = 1, #str do
+    h = (h * 31 + string.byte(str, i)) % 2147483647
+  end
+  return h
+end
+
+---Create overlay extmarks for a replace-mode entry.
+---@param bufnr number
+---@param entry table
+local function show_overlays(bufnr, entry)
+  if entry.overlays_visible then
+    return
+  end
+
+  local overlay_ids = {}
+  -- Skip the opening fence line — keep the ```mermaid tag visible.
+  -- Overlay source lines with diagram content (not blanks).
+  local overlay_start = entry.start_line + 1
+  local src_end = entry.block_end_line
+  local overlay_count = src_end - overlay_start + 1
+  local diagram_count = #entry.lines
+  local has_overflow = diagram_count > overlay_count
+
+  -- Check if there's a line after the closing fence for overflow placement
+  local total_lines = vim.api.nvim_buf_line_count(bufnr)
+  local has_next_line = (src_end + 1) < total_lines
+
+  -- If overflow needed and no next line, reserve closing fence for virt_lines only
+  local overlay_slots = overlay_count
+  if has_overflow and not has_next_line then
+    overlay_slots = overlay_count - 1
+  end
+
+  -- Only overlay lines that have corresponding diagram content
+  local lines_to_overlay = math.min(overlay_slots, diagram_count)
+
+  -- Compute the uniform overlay width: max of all diagram lines and source lines.
+  -- This prevents narrow padding lines from creating visible right-edge artifacts.
+  local min_width = 0
+  for _, line in ipairs(entry.lines) do
+    local w = vim.fn.strdisplaywidth("  " .. line)
+    if w > min_width then min_width = w end
+  end
+  for i = 0, lines_to_overlay - 1 do
+    local line_idx = overlay_start + i
+    local buf_line = vim.api.nvim_buf_get_lines(bufnr, line_idx, line_idx + 1, false)[1] or ""
+    local w = vim.fn.strdisplaywidth(buf_line)
+    if w > min_width then min_width = w end
+  end
+
+  for i = 0, lines_to_overlay - 1 do
+    local line_idx = overlay_start + i
+    local text = "  " .. entry.lines[i + 1]
+    local text_width = vim.fn.strdisplaywidth(text)
+    if min_width > text_width then
+      text = text .. string.rep(" ", min_width - text_width)
+    end
+
+    local id = vim.api.nvim_buf_set_extmark(bufnr, ns, line_idx, 0, {
+      virt_text = { { text, "Comment" } },
+      virt_text_pos = "overlay",
+    })
+    table.insert(overlay_ids, id)
+  end
+
+  -- Overflow: remaining diagram lines that don't fit in the source block
+  if diagram_count > lines_to_overlay then
+    local overflow_virt_lines = {}
+    for i = lines_to_overlay + 1, diagram_count do
+      table.insert(overflow_virt_lines, { { "  " .. entry.lines[i], "Comment" } })
+    end
+
+    if has_next_line then
+      -- Place on the line after the closing fence (virt_lines_above=true)
+      -- so they appear between the closing fence and the next line.
+      -- This avoids two extmarks at src_end (overlay + virt_lines).
+      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, src_end + 1, 0, {
+        virt_lines = overflow_virt_lines,
+        virt_lines_above = true,
+      })
+      table.insert(overlay_ids, id)
+    else
+      -- Closing fence is last line; no overlay there, use it for virt_lines
+      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, src_end, 0, {
+        virt_lines = overflow_virt_lines,
+        virt_lines_above = false,
+      })
+      table.insert(overlay_ids, id)
+    end
+  end
+
+  entry.overlay_ids = overlay_ids
+  entry.overlays_visible = true
+end
+
+---Remove overlay extmarks for a replace-mode entry (reveal source).
+---@param bufnr number
+---@param entry table
+local function hide_overlays(bufnr, entry)
+  if not entry.overlays_visible then
+    return
+  end
+
+  if entry.overlay_ids then
+    for _, id in ipairs(entry.overlay_ids) do
+      vim.api.nvim_buf_del_extmark(bufnr, ns, id)
+    end
+    entry.overlay_ids = {}
+  end
+
+  entry.overlays_visible = false
+end
+
+---Clear a single entry's extmarks (any mode).
+---@param bufnr number
+---@param entry table
+local function clear_entry(bufnr, entry)
+  if entry.mode == "replace" then
+    hide_overlays(bufnr, entry)
+  elseif entry.id then
+    vim.api.nvim_buf_del_extmark(bufnr, ns, entry.id)
+  end
+end
+
+---Render a block using inline mode (virt_lines below closing fence).
+---@param bufnr number
+---@param block table
+---@param lines string[]
+---@param hash number
+local function render_block_inline(bufnr, block, lines, hash)
+  local virt_lines = {}
+  table.insert(virt_lines, { { "", "Comment" } })
+  for _, line in ipairs(lines) do
+    table.insert(virt_lines, { { "  " .. line, "Comment" } })
+  end
+  table.insert(virt_lines, { { "", "Comment" } })
+
+  local extmark_id = vim.api.nvim_buf_set_extmark(bufnr, ns, block.end_line, 0, {
+    virt_lines = virt_lines,
+    virt_lines_above = false,
+  })
+
+  rendered[bufnr][block.start_line] = {
+    id = extmark_id,
+    hash = hash,
+    pending = false,
+    mode = "inline",
+  }
+end
+
+---Render a block using replace mode (overlay extmarks on source lines).
+---@param bufnr number
+---@param block table
+---@param lines string[]
+---@param hash number
+local function render_block_replace(bufnr, block, lines, hash)
+  -- Pad diagram lines to cover all source lines (content + closing fence).
+  -- This prevents source code from showing below short diagrams.
+  local min_lines = block.end_line - block.start_line
+  while #lines < min_lines do
+    table.insert(lines, "")
+  end
+
+  local entry = {
+    hash = hash,
+    pending = false,
+    mode = "replace",
+    lines = lines,
+    start_line = block.start_line,
+    block_end_line = block.end_line,
+    overlay_ids = {},
+    overlays_visible = false,
+  }
+
+  rendered[bufnr][block.start_line] = entry
+
+  -- Don't overlay if cursor is currently inside this block
+  if cursor_block[bufnr] == block.start_line then
+    return
+  end
+
+  show_overlays(bufnr, entry)
+end
+
+---@param bufnr number
+---@param block table { start_line, end_line, content }
+---@param config table plugin config
+local function render_block(bufnr, block, config)
+  local hash = content_hash(block.content)
+
+  if not rendered[bufnr] then
+    rendered[bufnr] = {}
+  end
+
+  local entry = rendered[bufnr][block.start_line]
+  if entry then
+    if entry.hash == hash then
+      return -- already rendered or in-flight, content unchanged
+    end
+    -- Content changed -- remove old extmarks
+    clear_entry(bufnr, entry)
+  end
+
+  -- Mark as pending immediately to prevent duplicate async renders
+  rendered[bufnr][block.start_line] = { id = nil, hash = hash, pending = true, mode = "inline" }
+
+  local render_opts = {
+    useAscii = config.use_ascii,
+    paddingX = config.padding_x,
+    paddingY = config.padding_y,
+  }
+
+  render.render(block.content, render_opts, function(lines, err)
+    if err then
+      vim.notify(err, vim.log.levels.WARN)
+      if rendered[bufnr] then
+        rendered[bufnr][block.start_line] = nil
+      end
+      return
+    end
+    if not lines or #lines == 0 then
+      return
+    end
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
+
+    -- Check we haven't been cleared or superseded while async was in-flight
+    local current = rendered[bufnr] and rendered[bufnr][block.start_line]
+    if not current or current.hash ~= hash then
+      return
+    end
+
+    -- Determine effective mode for this block
+    local mode = config.display_mode or "inline"
+    if mode == "hybrid" then
+      local threshold = config.hybrid_threshold or 15
+      if #lines >= threshold then
+        mode = "replace"
+      else
+        mode = "inline"
+      end
+    end
+
+    if mode == "replace" then
+      render_block_replace(bufnr, block, lines, hash)
+    else
+      render_block_inline(bufnr, block, lines, hash)
+    end
+  end)
+end
+
+--- Render all mermaid blocks in the buffer.
+---@param bufnr number
+---@param config table
+function M.show(bufnr, config)
+  local blocks = detect.find_blocks(bufnr)
+  for _, block in ipairs(blocks) do
+    render_block(bufnr, block, config)
+  end
+end
+
+--- Clear all rendered diagrams in the buffer.
+---@param bufnr number
+function M.clear(bufnr)
+  vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+  rendered[bufnr] = nil
+  cursor_block[bufnr] = nil
+end
+
+--- Toggle rendering for the buffer.
+---@param bufnr number
+---@param config table
+function M.toggle(bufnr, config)
+  if rendered[bufnr] and next(rendered[bufnr]) then
+    M.clear(bufnr)
+  else
+    M.show(bufnr, config)
+  end
+end
+
+--- Check if any diagrams are currently rendered in the buffer.
+---@param bufnr number
+---@return boolean
+function M.is_rendered(bufnr)
+  return rendered[bufnr] ~= nil and next(rendered[bufnr]) ~= nil
+end
+
+--- Handle CursorMoved: show/hide overlays as cursor enters/leaves mermaid blocks.
+--- Called from CursorMoved autocmd when display_mode is "replace" or "hybrid".
+---@param bufnr number
+---@param config table
+function M.on_cursor_moved(bufnr, config)
+  local mode = config.display_mode or "inline"
+  if mode == "inline" then
+    return
+  end
+
+  if not rendered[bufnr] then
+    return
+  end
+
+  local cursor_line = vim.api.nvim_win_get_cursor(0)[1] - 1 -- 0-indexed
+
+  -- Find which block (if any) the cursor is inside
+  local new_block = nil
+  for start_line, entry in pairs(rendered[bufnr]) do
+    if entry.mode == "replace" and entry.block_end_line then
+      if cursor_line >= start_line and cursor_line <= entry.block_end_line then
+        new_block = start_line
+        break
+      end
+    end
+  end
+
+  local old_block = cursor_block[bufnr]
+
+  if new_block == old_block then
+    return -- no change
+  end
+
+  -- Restore overlays on the block we left
+  if old_block and rendered[bufnr][old_block] then
+    show_overlays(bufnr, rendered[bufnr][old_block])
+  end
+
+  -- Hide overlays on the block we entered
+  if new_block and rendered[bufnr][new_block] then
+    hide_overlays(bufnr, rendered[bufnr][new_block])
+  end
+
+  cursor_block[bufnr] = new_block
+end
+
+return M
