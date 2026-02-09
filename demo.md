@@ -44,3 +44,15 @@ erDiagram
     CUSTOMER ||--o{ ORDER : places
     ORDER ||--|{ ITEM : contains
 ```
+
+## Pie Chart
+
+```mermaid
+pie
+    title Browser Usage
+    "Chrome" : 42
+    "Firefox" : 25
+    "Safari" : 15
+    "Edge" : 10
+    "Other" : 8
+```

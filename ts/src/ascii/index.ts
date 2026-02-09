@@ -10,6 +10,7 @@
 //   - Sequence diagrams (sequenceDiagram) — column-based timeline layout
 //   - Class diagrams (classDiagram) — level-based UML layout
 //   - ER diagrams (erDiagram) — grid layout with crow's foot notation
+//   - Pie charts (pie) — horizontal bar chart layout
 //
 // Usage:
 //   import { renderMermaidAscii } from 'beautiful-mermaid'
@@ -24,6 +25,7 @@ import { canvasToString, flipCanvasVertically } from './canvas'
 import { renderSequenceAscii } from './sequence'
 import { renderClassAscii } from './class-diagram'
 import { renderErAscii } from './er-diagram'
+import { renderPieAscii } from './pie-chart'
 import type { AsciiConfig } from './types'
 
 export interface AsciiRenderOptions {
@@ -41,12 +43,13 @@ export interface AsciiRenderOptions {
  * Detect the diagram type from the mermaid source text.
  * Mirrors the detection logic in src/index.ts for the SVG renderer.
  */
-function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | 'er' {
+function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'pie' {
   const firstLine = text.trim().split(/[\n;]/)[0]?.trim().toLowerCase() ?? ''
 
   if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
   if (/^classdiagram\s*$/.test(firstLine)) return 'class'
   if (/^erdiagram\s*$/.test(firstLine)) return 'er'
+  if (/^pie(\s|$)/.test(firstLine)) return 'pie'
 
   // Default: flowchart/state (handled by parseMermaid internally)
   return 'flowchart'
@@ -101,6 +104,9 @@ export function renderMermaidAscii(
 
     case 'er':
       return renderErAscii(text, config)
+
+    case 'pie':
+      return renderPieAscii(text, config)
 
     case 'flowchart':
     default: {
