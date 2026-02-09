@@ -143,16 +143,35 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
       colCount = 0
     }
 
+    // Try to center-align below a connected parent already placed on a previous row
+    let placeX = currentX
+    if (currentY > 0) {
+      for (const rel of diagram.relationships) {
+        const otherId = rel.entity1 === ent.id ? rel.entity2
+                      : rel.entity2 === ent.id ? rel.entity1
+                      : null
+        if (otherId && placed.has(otherId)) {
+          const parent = placed.get(otherId)!
+          if (parent.y < currentY) {
+            // Center-align: match centers of parent and child
+            const parentCX = parent.x + Math.floor(parent.width / 2)
+            placeX = Math.max(0, parentCX - Math.floor(w / 2))
+            break
+          }
+        }
+      }
+    }
+
     placed.set(ent.id, {
       entity: ent,
       sections: entitySections.get(ent.id)!,
-      x: currentX,
+      x: placeX,
       y: currentY,
       width: w,
       height: h,
     })
 
-    currentX += w + hGap
+    currentX = placeX + w + hGap
     maxRowH = Math.max(maxRowH, h)
     colCount++
   }
@@ -191,6 +210,10 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
   const V = useAscii ? '|' : '│'
   const dashH = useAscii ? '.' : '╌'
   const dashV = useAscii ? ':' : '┊'
+  const cornerDR = useAscii ? '+' : '┌'
+  const cornerDL = useAscii ? '+' : '┐'
+  const cornerUR = useAscii ? '+' : '└'
+  const cornerUL = useAscii ? '+' : '┘'
 
   for (const rel of diagram.relationships) {
     const e1 = placed.get(rel.entity1)
@@ -265,23 +288,39 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
       const startY = upper.y + upper.height
       const endY = lower.y - 1
       const lineX = upper.x + Math.floor(upper.width / 2)
-
-      // Vertical line
-      for (let y = startY; y <= endY; y++) {
-        if (y < totalH) canvas[lineX]![y] = lineV
-      }
-
-      // If horizontal offset needed, add a horizontal segment
       const lowerCX = lower.x + Math.floor(lower.width / 2)
-      if (lineX !== lowerCX) {
+
+      if (lineX === lowerCX) {
+        // Straight vertical line
+        for (let y = startY; y <= endY; y++) {
+          if (y < totalH) canvas[lineX]![y] = lineV
+        }
+      } else {
+        // L-route: vertical from upper to midY, horizontal at midY, vertical from midY to lower
         const midY = Math.floor((startY + endY) / 2)
+        // Vertical segment from upper entity down to midY
+        for (let y = startY; y < midY; y++) {
+          if (y < totalH) canvas[lineX]![y] = lineV
+        }
         // Horizontal segment at midY
         const lx = Math.min(lineX, lowerCX)
         const rx = Math.max(lineX, lowerCX)
         for (let x = lx; x <= rx; x++) {
           if (x < totalW && midY < totalH) canvas[x]![midY] = lineH
         }
-        // Vertical from midY to lower entity
+        // Corner characters at the turns
+        if (midY < totalH) {
+          if (lowerCX < lineX) {
+            // Lower entity is to the left
+            canvas[lineX]![midY] = cornerUL
+            canvas[lowerCX]![midY] = cornerDR
+          } else {
+            // Lower entity is to the right
+            canvas[lineX]![midY] = cornerUR
+            canvas[lowerCX]![midY] = cornerDL
+          }
+        }
+        // Vertical segment from midY down to lower entity
         for (let y = midY + 1; y <= endY; y++) {
           if (y < totalH) canvas[lowerCX]![y] = lineV
         }
