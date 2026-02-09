@@ -12,6 +12,7 @@
 //   - ER diagrams (erDiagram) — grid layout with crow's foot notation
 //   - Pie charts (pie) — horizontal bar chart layout
 //   - Timeline diagrams (timeline) — vertical timeline with tree-style events
+//   - Gantt charts (gantt) — horizontal task bars on a timeline
 //
 // Usage:
 //   import { renderMermaidAscii } from 'beautiful-mermaid'
@@ -28,6 +29,7 @@ import { renderClassAscii } from './class-diagram'
 import { renderErAscii } from './er-diagram'
 import { renderPieAscii } from './pie-chart'
 import { renderTimelineAscii } from './timeline'
+import { renderGanttAscii } from './gantt'
 import type { AsciiConfig } from './types'
 
 export interface AsciiRenderOptions {
@@ -45,7 +47,7 @@ export interface AsciiRenderOptions {
  * Detect the diagram type from the mermaid source text.
  * Mirrors the detection logic in src/index.ts for the SVG renderer.
  */
-function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'pie' | 'timeline' {
+function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'pie' | 'timeline' | 'gantt' {
   const firstLine = text.trim().split(/[\n;]/)[0]?.trim().toLowerCase() ?? ''
 
   if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'
@@ -53,6 +55,7 @@ function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | '
   if (/^erdiagram\s*$/.test(firstLine)) return 'er'
   if (/^pie(\s|$)/.test(firstLine)) return 'pie'
   if (/^timeline(\s|$)/.test(firstLine)) return 'timeline'
+  if (/^gantt(\s|$)/.test(firstLine)) return 'gantt'
 
   // Default: flowchart/state (handled by parseMermaid internally)
   return 'flowchart'
@@ -113,6 +116,9 @@ export function renderMermaidAscii(
 
     case 'timeline':
       return renderTimelineAscii(text, config)
+
+    case 'gantt':
+      return renderGanttAscii(text, config)
 
     case 'flowchart':
     default: {

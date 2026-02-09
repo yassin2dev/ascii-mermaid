@@ -68,3 +68,19 @@ timeline
     section Phase 2
         2025 : Launch : Support
 ```
+
+## Gantt Chart
+
+```mermaid
+gantt
+    title Project Timeline
+    dateFormat YYYY-MM-DD
+    section Planning
+        Requirements :done, req1, 2024-01-01, 14d
+        Design       :active, des1, after req1, 21d
+    section Development
+        Backend      :crit, dev1, 2024-02-05, 30d
+        Frontend     :dev2, 2024-02-05, 28d
+    section Deployment
+        Release      :milestone, rel1, 2024-03-06, 0d
+```
