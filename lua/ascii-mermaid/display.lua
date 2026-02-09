@@ -123,7 +123,7 @@ end
 ---@param bufnr number
 ---@param entry table
 local function clear_entry(bufnr, entry)
-  if entry.mode == "replace" then
+  if entry.mode == "replace" or entry.mode == "readonly" then
     hide_overlays(bufnr, entry)
   elseif entry.id then
     vim.api.nvim_buf_del_extmark(bufnr, ns, entry.id)
@@ -161,11 +161,11 @@ end
 ---@param block table
 ---@param lines string[]
 ---@param hash number
-local function render_block_replace(bufnr, block, lines, hash)
+local function render_block_replace(bufnr, block, lines, hash, mode)
   local entry = {
     hash = hash,
     pending = false,
-    mode = "replace",
+    mode = mode or "replace",
     lines = lines,
     start_line = block.start_line,
     block_end_line = block.end_line,
@@ -175,8 +175,8 @@ local function render_block_replace(bufnr, block, lines, hash)
 
   rendered[bufnr][block.start_line] = entry
 
-  -- Don't overlay if cursor is currently inside this block
-  if cursor_block[bufnr] == block.start_line then
+  -- Don't overlay if cursor is currently inside this block (readonly always overlays)
+  if mode ~= "readonly" and cursor_block[bufnr] == block.start_line then
     return
   end
 
@@ -243,8 +243,8 @@ local function render_block(bufnr, block, config)
       end
     end
 
-    if mode == "replace" then
-      render_block_replace(bufnr, block, lines, hash)
+    if mode == "replace" or mode == "readonly" then
+      render_block_replace(bufnr, block, lines, hash, mode)
     else
       render_block_inline(bufnr, block, lines, hash)
     end
@@ -293,7 +293,7 @@ end
 ---@param config table
 function M.on_cursor_moved(bufnr, config)
   local mode = config.display_mode or "inline"
-  if mode == "inline" then
+  if mode == "inline" or mode == "readonly" then
     return
   end
 

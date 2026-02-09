@@ -67,8 +67,8 @@ function M.setup(opts)
 
   vim.api.nvim_create_user_command("MermaidMode", function(args)
     local mode = args.args
-    if mode ~= "inline" and mode ~= "replace" and mode ~= "hybrid" then
-      vim.notify("ascii-mermaid: invalid mode '" .. mode .. "' (use inline, replace, or hybrid)", vim.log.levels.ERROR)
+    if mode ~= "inline" and mode ~= "replace" and mode ~= "hybrid" and mode ~= "readonly" then
+      vim.notify("ascii-mermaid: invalid mode '" .. mode .. "' (use inline, replace, hybrid, or readonly)", vim.log.levels.ERROR)
       return
     end
     M.config.display_mode = mode
@@ -78,7 +78,7 @@ function M.setup(opts)
   end, {
     nargs = 1,
     complete = function()
-      return { "inline", "replace", "hybrid" }
+      return { "inline", "replace", "readonly", "hybrid" }
     end,
     desc = "Switch mermaid display mode",
   })
@@ -115,7 +115,7 @@ function M.setup(opts)
   end
 
   -- CursorMoved autocmd for replace/hybrid overlay toggle
-  if M.config.display_mode == "replace" or M.config.display_mode == "hybrid" then
+  if M.config.display_mode == "replace" or M.config.display_mode == "hybrid" or M.config.display_mode == "readonly" then
     vim.api.nvim_create_autocmd("CursorMoved", {
       group = group,
       pattern = "*.md",

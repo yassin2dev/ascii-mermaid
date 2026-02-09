@@ -204,4 +204,48 @@ end
 
 display.clear(bufnr8)
 
+-- ============================================================
+-- Test 9: Readonly mode produces overlays (same as replace)
+-- ============================================================
+local cfg_readonly = vim.tbl_deep_extend("force", cfg_inline, { display_mode = "readonly" })
+
+local bufnr9 = h.create_mermaid_buffer(mermaid_src)
+display.show(bufnr9, cfg_readonly)
+local found9 = h.wait_for_extmarks(bufnr9)
+h.assert(found9, "readonly: extmarks not found after rendering (timeout)")
+
+local overlays9 = h.get_overlay_extmarks(bufnr9)
+h.assert(#overlays9 > 0, "readonly: expected overlay extmarks for diagram content")
+
+local all_text9 = h.get_virt_text_lines(bufnr9)
+for _, t in ipairs(h.get_overlay_text_lines(bufnr9)) do
+  table.insert(all_text9, t)
+end
+h.assert_any_match(all_text9, "Start", "readonly: rendered text should contain 'Start'")
+
+display.clear(bufnr9)
+
+-- ============================================================
+-- Test 10: Readonly mode does NOT toggle overlays on cursor move
+-- ============================================================
+local bufnr10 = h.create_mermaid_buffer(mermaid_src)
+display.show(bufnr10, cfg_readonly)
+local found10 = h.wait_for_extmarks(bufnr10)
+h.assert(found10, "readonly-cursor: extmarks not found after rendering (timeout)")
+
+-- Verify overlays are visible initially
+local overlays10a = h.get_overlay_extmarks(bufnr10)
+h.assert(#overlays10a > 0, "readonly-cursor: overlays should be visible initially")
+
+-- Move cursor inside the mermaid block (line 4 = source content, 1-indexed)
+vim.api.nvim_set_current_buf(bufnr10)
+vim.api.nvim_win_set_cursor(0, { 4, 0 })
+display.on_cursor_moved(bufnr10, cfg_readonly)
+
+-- Overlays should STILL be visible (readonly does not toggle)
+local overlays10b = h.get_overlay_extmarks(bufnr10)
+h.assert(#overlays10b > 0, "readonly-cursor: overlays should remain visible when cursor is inside block, found " .. #overlays10b)
+
+display.clear(bufnr10)
+
 h.pass()
