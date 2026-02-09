@@ -46,39 +46,36 @@ local function show_overlays(bufnr, entry)
 
   local overlay_slots = overlay_count
 
-  -- Only overlay source lines that have non-empty diagram content.
-  -- All overlays are padded to the same width (max diagram line width) so the
-  -- opaque bg forms a uniform rectangle — like a code block background.
-  -- Irregular widths create visible "block" artifacts on transparent terminals.
-  local lines_to_overlay = math.min(overlay_slots, diagram_count)
-
   -- Extend overlays to the full window width so the right edge is invisible
   -- (at the window boundary where every line ends anyway).
   local winid = vim.fn.bufwinid(bufnr)
   local uniform_width = winid ~= -1 and vim.api.nvim_win_get_width(winid) or 120
 
-  for i = 0, lines_to_overlay - 1 do
-    -- Skip empty diagram lines (would produce all-space overlay = blocks)
-    if entry.lines[i + 1] ~= "" then
-      local line_idx = overlay_start + i
-      local text = "  " .. entry.lines[i + 1]
-      local text_width = vim.fn.strdisplaywidth(text)
-      if uniform_width > text_width then
-        text = text .. string.rep(" ", uniform_width - text_width)
-      end
-
-      local id = vim.api.nvim_buf_set_extmark(bufnr, ns, line_idx, 0, {
-        virt_text = { { text, "Comment" } },
-        virt_text_pos = "overlay",
-      })
-      table.insert(overlay_ids, id)
+  for i = 0, overlay_slots - 1 do
+    local line_idx = overlay_start + i
+    local text
+    if i < diagram_count and entry.lines[i + 1] ~= "" then
+      text = "  " .. entry.lines[i + 1]
+    else
+      -- No diagram content for this source line — hide with space overlay
+      text = " "
     end
+    local text_width = vim.fn.strdisplaywidth(text)
+    if uniform_width > text_width then
+      text = text .. string.rep(" ", uniform_width - text_width)
+    end
+
+    local id = vim.api.nvim_buf_set_extmark(bufnr, ns, line_idx, 0, {
+      virt_text = { { text, "Comment" } },
+      virt_text_pos = "overlay",
+    })
+    table.insert(overlay_ids, id)
   end
 
   -- Overflow: remaining diagram lines that don't fit in the source block
-  if diagram_count > lines_to_overlay then
+  if diagram_count > overlay_slots then
     local overflow_virt_lines = {}
-    for i = lines_to_overlay + 1, diagram_count do
+    for i = overlay_slots + 1, diagram_count do
       table.insert(overflow_virt_lines, { { "  " .. entry.lines[i], "Comment" } })
     end
 
