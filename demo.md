@@ -56,3 +56,15 @@ pie
     "Edge" : 10
     "Other" : 8
 ```
+
+## Timeline
+
+```mermaid
+timeline
+    title Project Roadmap
+    section Phase 1
+        2023 : Planning : Research
+        2024 : Development
+    section Phase 2
+        2025 : Launch : Support
+```
