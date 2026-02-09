@@ -1,6 +1,6 @@
 # Rendering Pipeline
 
-The TypeScript engine transforms Mermaid text into ASCII/Unicode art through a multi-stage pipeline. Flowcharts and state diagrams share a common grid-based pipeline, while sequence, class, and ER diagrams each have self-contained renderers.
+The TypeScript engine transforms Mermaid text into ASCII/Unicode art through a multi-stage pipeline. Flowcharts and state diagrams share a common grid-based pipeline, while the remaining diagram types (sequence, class, ER, Gantt, pie, timeline) each have self-contained renderers.
 
 ## Pipeline Overview
 
@@ -11,6 +11,9 @@ flowchart TD
     B -->|sequenceDiagram| D[sequence/parser.ts]
     B -->|classDiagram| E[class/parser.ts]
     B -->|erDiagram| F[er/parser.ts]
+    B -->|gantt| G2[gantt/parser.ts]
+    B -->|pie| H2[pie/parser.ts]
+    B -->|timeline| I2[timeline/parser.ts]
 
     C --> G[MermaidGraph]
     G --> H[converter.ts]
@@ -33,6 +36,18 @@ flowchart TD
     F --> S[ERDiagram]
     S --> T[ascii/er-diagram.ts]
     T --> N
+
+    G2 --> V[GanttChart]
+    V --> W[ascii/gantt.ts]
+    W --> U
+
+    H2 --> X[PieChart]
+    X --> Y[ascii/pie-chart.ts]
+    Y --> U
+
+    I2 --> Z[TimelineDiagram]
+    Z --> AA[ascii/timeline.ts]
+    AA --> U
 
     N --> U[ASCII/Unicode String]
 ```
@@ -199,3 +214,46 @@ flowchart TD
 ```
 
 Entities are placed in a grid pattern that wraps to multiple rows. Each entity is a two-section box (name | attributes). Relationships use crow's foot cardinality markers (`║`, `╟`, `o║`, `o╟`).
+
+## Gantt Chart Renderer
+
+Self-contained in `ascii/gantt.ts`. Uses a horizontal bar layout:
+
+```mermaid
+flowchart TD
+    A[parseGanttChart] --> B[GanttChart]
+    B --> C[Compute global date range]
+    C --> D[Draw section headers]
+    D --> E[Draw task bars proportional to duration]
+    E --> F[Add date range labels]
+```
+
+Tasks are rendered as horizontal bars with width proportional to duration within the global time span. Bar fill characters indicate task status: solid blocks for active tasks, medium shade for done, cross-hatch for critical, and diamonds for milestones. Date ranges appear to the right of each bar.
+
+## Pie Chart Renderer
+
+Self-contained in `ascii/pie-chart.ts`. Uses horizontal proportional bars:
+
+```mermaid
+flowchart TD
+    A[parsePieChart] --> B[PieChart]
+    B --> C[Calculate percentages]
+    C --> D[Draw proportional bars]
+    D --> E[Add percentage labels]
+```
+
+Each slice renders as a row with a filled bar whose width is proportional to the slice's percentage of the total. Labels are left-aligned and percentages are right-aligned. The optional `showData` flag adds raw values in parentheses.
+
+## Timeline Diagram Renderer
+
+Self-contained in `ascii/timeline.ts`. Uses a vertical tree layout:
+
+```mermaid
+flowchart TD
+    A[parseTimeline] --> B[TimelineDiagram]
+    B --> C[Draw section headers]
+    C --> D[Draw period boxes]
+    D --> E[Draw event trees with branch connectors]
+```
+
+Each period renders as a bordered box with events branching below in a tree structure. Section headers appear as horizontal rules with the section name. Events use tree connectors (`├──` for intermediate, `└──` for final).

@@ -1,6 +1,6 @@
 # Supported Diagram Types
 
-ascii-mermaid supports five Mermaid diagram types. Flowcharts and state diagrams share the grid-based rendering pipeline, while sequence, class, and ER diagrams each have specialized renderers.
+ascii-mermaid supports eight Mermaid diagram types. Flowcharts and state diagrams share the grid-based rendering pipeline, while the remaining types each have specialized renderers.
 
 ## Flowcharts
 
@@ -262,3 +262,121 @@ erDiagram
         date created
     }
 ```
+
+## Gantt Charts
+
+**Header:** `gantt`
+
+### Directives
+
+| Directive | Purpose |
+|---|---|
+| `title <text>` | Chart title (centered above tasks) |
+| `dateFormat <format>` | Date format (default: `YYYY-MM-DD`) |
+| `excludes <pattern>` | Excluded dates |
+| `section <name>` | Group tasks into named sections |
+
+### Task Syntax
+
+Tasks are defined as `<label> : <metadata>` where metadata is a comma-separated list of optional tags, an optional task ID, a start date, and an end date or duration.
+
+```
+Task Name :tag1, tag2, id, start, end_or_duration
+```
+
+### Tags
+
+| Tag | Meaning | Fill Character |
+|---|---|---|
+| `active` | Currently active task | `█` (solid block) |
+| `done` | Completed task | `▒` (medium shade) |
+| `crit` | Critical task | `╬` (cross-hatch) |
+| `milestone` | Single-point milestone | `◆` (diamond) |
+
+### Date and Duration
+
+- **Start:** ISO date (`2024-01-01`) or `after <taskId>` for dependencies
+- **End:** ISO date or duration (`14d` for days, `2w` for weeks)
+- Tasks with no explicit start inherit the previous task's end date
+
+### Example
+
+```mermaid
+gantt
+    title Project Plan
+    dateFormat YYYY-MM-DD
+    section Design
+        Mockups           :a1, 2024-01-01, 7d
+        Review            :a2, after a1, 3d
+    section Development
+        Coding            :active, b1, after a2, 14d
+        Testing           :crit, t1, after b1, 10d
+        Beta Release      :milestone, m1, after t1, 0d
+```
+
+Renders as horizontal task bars on a timeline, with bar width proportional to task duration and fill character indicating status. Date ranges (`MM-DD -> MM-DD`) appear to the right of each bar.
+
+## Pie Charts
+
+**Header:** `pie [showData]`
+
+### Syntax
+
+```
+pie [showData]
+    [title <text>]
+    "<label>" : <value>
+    ...
+```
+
+- `showData` (optional) -- displays raw numeric values alongside percentages
+- `title <text>` (optional) -- chart title centered above the bars
+- Labels must be quoted with double quotes
+- Values can be integers or decimals
+
+### Example
+
+```mermaid
+pie showData
+    title Browser Share
+    "Chrome" : 63.5
+    "Safari" : 20.1
+    "Firefox" : 10.2
+    "Edge" : 6.2
+```
+
+Renders as horizontal proportional bars. Bar width represents the percentage of the total. Each row shows the label, a filled bar (`█`), and the percentage. With `showData`, the raw value appears in parentheses after the percentage.
+
+## Timeline Diagrams
+
+**Header:** `timeline`
+
+### Syntax
+
+```
+timeline
+    [title <text>]
+    [section <name>]
+    <period> : <event1> : <event2> : ...
+    : <continuation_event>
+```
+
+- `title <text>` (optional) -- diagram title centered above content
+- `section <name>` (optional) -- groups periods into named sections
+- Period lines define a period name and one or more colon-separated events
+- Continuation lines (starting with `:`) add events to the current period
+
+### Example
+
+```mermaid
+timeline
+    title Project Roadmap
+    section Phase 1
+        2023 : Planning : Requirements
+        2024 : Development
+             : Testing
+    section Phase 2
+        2025 : Launch : Support
+```
+
+Renders as a vertical timeline. Each period appears in a bordered box with events branching below in a tree structure (`├──` for intermediate events, `└──` for the final event). Section headers appear as horizontal rules with the section name.

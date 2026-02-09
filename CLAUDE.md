@@ -33,7 +33,7 @@ For **flowcharts and state diagrams** (the original pipeline):
 4. `ascii/draw.ts` → `drawGraph()` — Renders boxes, lines, arrows, corners, subgraph borders onto a 2D character canvas in layered order
 5. `ascii/canvas.ts` — Column-major 2D text array (`canvas[x][y]`), with Unicode junction merging
 
-For **sequence, class, and ER diagrams**: Each has its own parser (`sequence/parser.ts`, `class/parser.ts`, `er/parser.ts`) and renderer (`ascii/sequence.ts`, `ascii/class-diagram.ts`, `ascii/er-diagram.ts`) with layout strategies suited to each diagram type. They share canvas utilities and `drawMultiBox` but bypass the grid/pathfinder pipeline.
+For **sequence, class, ER, Gantt, pie, and timeline diagrams**: Each has its own parser (`sequence/parser.ts`, `class/parser.ts`, `er/parser.ts`, `gantt/parser.ts`, `pie/parser.ts`, `timeline/parser.ts`) and renderer (`ascii/sequence.ts`, `ascii/class-diagram.ts`, `ascii/er-diagram.ts`, `ascii/gantt.ts`, `ascii/pie-chart.ts`, `ascii/timeline.ts`) with layout strategies suited to each diagram type. They bypass the grid/pathfinder pipeline.
 
 ### Key coordinate systems
 
@@ -42,7 +42,7 @@ For **sequence, class, and ER diagrams**: Each has its own parser (`sequence/par
 
 ### Lua plugin modules
 
-- `init.lua` — Setup, user commands (`:MermaidRender`, `:MermaidRenderAll`, `:MermaidClear`), autocmds with debouncing
+- `init.lua` — Setup, user commands (`:MermaidRender`, `:MermaidRenderAll`, `:MermaidClear`, `:MermaidStyle`, `:MermaidMode`), autocmds with debouncing
 - `detect.lua` — Finds mermaid code blocks via tree-sitter with regex fallback
 - `render.lua` — Async Node.js invocation via `vim.system()`, passes JSON on stdin
 - `display.lua` — Manages extmarks, content hashing for dedup, toggle state
@@ -51,6 +51,13 @@ For **sequence, class, and ER diagrams**: Each has its own parser (`sequence/par
 
 `useAscii: true` uses `+`, `-`, `|`, `>` characters. `useAscii: false` (default) uses Unicode box-drawing characters (`┌`, `─`, `│`, `►`).
 
+### Display modes
+
+- **inline** — Rendered diagram appears as virtual text below the code block
+- **replace** — Diagram overlays the source code; cursor reveals source
+- **hybrid** — Replace for short blocks, inline for longer ones
+- **readonly** — Overlay that never reveals source
+
 ## Supported Diagram Types
 
 - Flowcharts (`graph TD`, `flowchart LR`, all directions including BT via canvas flip)
@@ -58,6 +65,9 @@ For **sequence, class, and ER diagrams**: Each has its own parser (`sequence/par
 - Sequence diagrams (`sequenceDiagram`)
 - Class diagrams (`classDiagram`)
 - ER diagrams (`erDiagram`)
+- Gantt charts (`gantt`, sections, task bars, dependencies, status tags)
+- Pie charts (`pie`, horizontal proportional bars with percentages)
+- Timeline diagrams (`timeline`, vertical layout with period boxes and event trees)
 
 ## Testing
 

@@ -63,6 +63,9 @@ flowchart TD
         ASCII_IDX --> SEQ_R[ascii/sequence.ts]
         ASCII_IDX --> CLS_R[ascii/class-diagram.ts]
         ASCII_IDX --> ER_R[ascii/er-diagram.ts]
+        ASCII_IDX --> GANTT_R[ascii/gantt.ts]
+        ASCII_IDX --> PIE_R[ascii/pie-chart.ts]
+        ASCII_IDX --> TL_R[ascii/timeline.ts]
 
         GRID --> PF[ascii/pathfinder.ts]
         GRID --> ER_ROUTE[ascii/edge-routing.ts]
@@ -72,6 +75,9 @@ flowchart TD
         IDX --> SEQ_P[sequence/parser.ts]
         IDX --> CLS_P[class/parser.ts]
         IDX --> ER_P[er/parser.ts]
+        IDX --> GANTT_P[gantt/parser.ts]
+        IDX --> PIE_P[pie/parser.ts]
+        IDX --> TL_P[timeline/parser.ts]
     end
 
     subgraph Neovim Plugin
@@ -102,6 +108,12 @@ flowchart TD
 | `ascii/sequence.ts` | Self-contained sequence diagram renderer |
 | `ascii/class-diagram.ts` | Self-contained class diagram renderer |
 | `ascii/er-diagram.ts` | Self-contained ER diagram renderer |
+| `ascii/gantt.ts` | Self-contained Gantt chart renderer |
+| `ascii/pie-chart.ts` | Self-contained pie chart renderer (horizontal bars) |
+| `ascii/timeline.ts` | Self-contained timeline diagram renderer |
+| `gantt/parser.ts` | Parser for Gantt charts |
+| `pie/parser.ts` | Parser for pie charts |
+| `timeline/parser.ts` | Parser for timeline diagrams |
 | `ascii/types.ts` | Type definitions for grid coords, canvas, nodes, edges, config |
 | `types.ts` | Type definitions for parsed Mermaid structures |
 
@@ -145,11 +157,13 @@ The plugin is configured via `setup()`:
 
 ```lua
 require("ascii-mermaid").setup({
-  auto = true,           -- auto-render on BufEnter and CursorHold
-  use_ascii = false,     -- false = Unicode box-drawing, true = ASCII (+,-,|)
-  debounce_ms = 500,     -- throttle CursorHold re-renders
-  padding_x = 2,         -- horizontal node spacing
-  padding_y = 1,         -- vertical node spacing
+  auto = true,              -- auto-render on BufEnter and CursorHold
+  use_ascii = false,        -- false = Unicode box-drawing, true = ASCII (+,-,|)
+  debounce_ms = 500,        -- throttle CursorHold re-renders
+  padding_x = 2,            -- horizontal node spacing
+  padding_y = 1,            -- vertical node spacing
+  display_mode = "replace", -- "inline", "replace", "hybrid", or "readonly"
+  hybrid_threshold = 15,    -- line count threshold for hybrid mode
 })
 ```
 
@@ -160,3 +174,5 @@ User commands:
 | `:MermaidRender` | Toggle rendering for the current buffer |
 | `:MermaidRenderAll` | Force re-render all blocks (clears cache) |
 | `:MermaidClear` | Remove all virtual text |
+| `:MermaidStyle ascii\|unicode` | Switch between ASCII and Unicode rendering |
+| `:MermaidMode inline\|replace\|hybrid\|readonly` | Switch display mode |
